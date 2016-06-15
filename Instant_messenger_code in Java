@@ -1,0 +1,198 @@
+package ClientProgram;
+import java.io.*;
+import java.net.*;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+public class onClient extends JFrame
+{
+	private Socket myconnection;
+	private String Name = "client";
+	private JTextField textArea;
+	private JTextArea chatWindow;
+	private ObjectOutputStream output;
+	private ObjectInputStream input;
+    private String message = " ";
+    private String serverIP;
+    private String pcName = "Unknown";
+	public onClient(String host) 
+	{
+		super("chatwindow for client");
+		textArea = new JTextField();
+		textArea.setEditable(false);
+		serverIP = host;
+		chatWindow = new JTextArea();
+		chatWindow.setEditable(false);
+		textArea.addActionListener(
+				new ActionListener()
+				{
+					public void actionPerformed(ActionEvent event)
+					{
+						//message= event.getActionCommand();
+						sendMessage(event.getActionCommand());
+						textArea.setText("");
+					}
+				}
+				);
+		add(textArea,BorderLayout.SOUTH);
+		add(new JScrollPane(chatWindow),BorderLayout.CENTER);
+		setSize(300,150);
+		setVisible(true);
+		
+		
+		
+	}
+	//Sets the name of the PC
+	private void setPcName()
+	{
+		try{
+			InetAddress addr;
+			addr = InetAddress.getLocalHost();
+			pcName =addr.getHostName();
+			
+		}catch(UnknownHostException ex)
+		{
+			pcName = "Unknown user";
+			sendMessage("\n Unknown user");
+		}
+	}
+	public void startProgram()
+	{
+		try{
+			connectToServer();
+			setUpStream();
+			startChatting();
+			
+		}
+		catch(EOFException f)
+		{
+			showMessage("\n Connection terminated");
+			
+		}
+		catch(IOException e)
+		{
+			e.printStackTrace();
+		}
+		finally{
+			closeAll();
+		}
+	}
+   // establishes connection with server
+	private void connectToServer()throws IOException
+	{
+		showMessage("\n Attemting to connect");
+		try{
+			myconnection = new Socket(InetAddress.getByName(serverIP),6789);
+			//showMessage("\nConnected to: "+myconnection.getInetAddress().getHostName());
+			showMessage("\n Connection established with server");
+		}
+		catch(IOException ex){
+			showMessage("\n Server is offLine \n connections not made");
+			showMessage("\n clossing program.......");
+			SwingUtilities.invokeLater(
+					new Runnable(){
+						public void run()
+						{
+							
+							try {
+								Thread.sleep(25);
+								//System.exit(ABORT);
+								
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+							
+						}
+					}
+					
+					);
+			
+						
+		}
+
+	}
+	// sets up the input and output stream
+	private void setUpStream() throws IOException
+	{
+		input = new ObjectInputStream(myconnection.getInputStream());
+		output = new ObjectOutputStream(myconnection.getOutputStream());
+		output.flush();
+		showMessage("\n..................... ");
+		ableToType(true);
+		setPcName();
+	}
+	private void startChatting() throws IOException
+   	{  
+		
+		ableToType(true);
+		do{
+   			try{ 
+   					message = (String) input.readObject();
+   				showMessage("\n "+ message);
+   							
+   				}catch( ClassNotFoundException e)
+   					{
+   						showMessage("\nConnection terminated");
+   					}
+   		
+   			}while(!message.endsWith("END"));
+		
+	}
+	private void showMessage(String text)
+	{
+		SwingUtilities.invokeLater(
+				new Runnable()
+				{
+					public void run(){
+						chatWindow.append(text);
+					}
+				}
+				);
+				
+	}
+	private void ableToType(final boolean att)
+	{
+		SwingUtilities.invokeLater(
+				new Runnable()
+				{
+					public void run()
+					{
+						textArea.setEditable(att);
+					}
+				}
+				);
+	}
+	private void sendMessage(String text)
+	{
+		try{
+			message = pcName+"-    "+text;
+			output.writeObject(message);
+			showMessage("\n" +message);
+		}catch(IOException e)
+		{
+			e.printStackTrace();
+		}
+		
+	}
+	private void closeAll()
+	{
+		showMessage("\n Terminating connections....");
+		ableToType(false);
+		try{
+			myconnection.close();
+			input.close();
+			output.close();
+			
+			showMessage("\n Program terminated!!");
+		}catch(IOException e)
+		{
+			e.printStackTrace();
+		}
+		
+		
+	}
+		
+}
+
+
